@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bert & Beth | Wedding Memories</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="ornament">✦</div>
+  <p class="eyebrow">OUR WEDDING MEMORIES</p>
+  <h1>Bert <span>&amp;</span> Beth</h1>
+  <p class="subtitle">Help us collect the beautiful moments from our special day.</p>
+  <div class="actions">
+    <a class="btn primary" href="#upload">📸 Upload Photos &amp; Videos</a>
+    <a class="btn ghost" href="#gallery">🖼 View Gallery</a>
+  </div>
+</header>
+
+<main>
+<section class="section intro">
+  <p class="script">Every moment matters.</p>
+  <h2>Share Your Memories With Us</h2>
+  <p>Were you there? Upload the photos and videos you captured so Bert &amp; Beth can relive the day through everyone's eyes.</p>
+</section>
+
+<section id="upload" class="section">
+  <div class="card">
+    <div class="section-title">
+      <span>01</span>
+      <div><h2>Upload a Memory</h2><p>Photos and videos from your phone are welcome.</p></div>
+    </div>
+
+    <form id="uploadForm">
+      <label class="dropzone" id="dropzone">
+        <input id="mediaInput" type="file" accept="image/*,video/*" multiple>
+        <div class="upload-icon">＋</div>
+        <strong>Choose Photos or Videos</strong>
+        <small>Tap here to select one or more files</small>
+      </label>
+
+      <div id="fileList" class="file-list"></div>
+
+      <div class="fields">
+        <label>Guest name <span>(optional)</span>
+          <input id="guestName" type="text" maxlength="80" placeholder="Your name">
+        </label>
+        <label>Message <span>(optional)</span>
+          <textarea id="message" maxlength="300" placeholder="A little note for the couple..."></textarea>
+        </label>
+      </div>
+
+      <button class="btn primary wide" type="submit">❤️ Share With Bert &amp; Beth</button>
+      <div id="status" class="status"></div>
+    </form>
+  </div>
+</section>
+
+<section id="gallery" class="section gallery-section">
+  <div class="section-title">
+    <span>02</span>
+    <div><h2>Wedding Gallery</h2><p>Shared memories will appear here.</p></div>
+  </div>
+  <div id="galleryGrid" class="gallery-grid">
+    <div class="empty"><div>♡</div><p>No memories yet.</p><small>Be the first to upload a photo or video.</small></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="ornament">✦</div>
+  <strong>Bert &amp; Beth</strong>
+  <p>With love, gratitude, and beautiful memories.</p>
+</footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
