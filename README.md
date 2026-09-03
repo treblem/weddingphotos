@@ -52,3 +52,6 @@ using (bucket_id = 'wedding-media');
 ```
 
 Only put the Supabase project URL and **anon/public key** in `config.js`. Never put a `service_role` key in the website.
+
+
+Photos and videos are now automatically separated into their own gallery sections.
