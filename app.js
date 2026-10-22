@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusDiv = document.getElementById('status');
   const photoGrid = document.getElementById('photoGrid');
   const videoGrid = document.getElementById('videoGrid');
-  const messageGrid = document.getElementById('messageGrid');
 
   let stagedFiles = [];
 
@@ -114,16 +113,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const guestName = guestNameInput.value.trim();
-    const message = messageInput.value.trim();
-
-    if (stagedFiles.length === 0 && !message) {
-      showStatus('Please select a photo/video or write a message for Bert & Beth.', 'error');
+    if (stagedFiles.length === 0) {
+      showStatus('Please select at least one photo or video to upload.', 'error');
       return;
     }
 
+    const guestName = guestNameInput.value.trim();
+    const message = messageInput.value.trim();
+
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Sharing with Bert & Beth...';
+    submitBtn.textContent = 'Uploading...';
     if (uploadProgress && progressFill) {
       uploadProgress.hidden = false;
       progressFill.style.width = '15%';
@@ -131,20 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
     statusDiv.textContent = '';
 
     const uploadedItems = [];
-    const uploadedMessages = [];
 
     try {
-      if (stagedFiles.length === 0 && message) {
-        const response = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          redirect: 'follow',
-          body: JSON.stringify({ guestName, message })
-        });
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error || 'Failed to save message');
-        if (result.guestMessage) uploadedMessages.push(result.guestMessage);
-      }
-
       for (let i = 0; i < stagedFiles.length; i++) {
         const file = stagedFiles[i];
         const base64 = await fileToBase64(file);
@@ -154,8 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
           mimeType: file.type || 'application/octet-stream',
           base64: base64,
           guestName: guestName,
-          message: message,
-          skipMessageLog: i > 0
+          message: message
         };
 
         const response = await fetch(SCRIPT_URL, {
@@ -168,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!result.success) throw new Error(result.error || 'Failed to upload file');
 
         if (result.item) uploadedItems.push(result.item);
-        if (result.guestMessage) uploadedMessages.push(result.guestMessage);
 
         if (uploadProgress && progressFill) {
           const percent = Math.round(((i + 1) / stagedFiles.length) * 100);
@@ -177,9 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      showStatus('Thank you! Your memory has been shared successfully.', 'success');
+      showStatus('Thank you! Your memories were uploaded successfully.', 'success');
       if (uploadedItems.length > 0) appendMediaToGallery(uploadedItems);
-      if (uploadedMessages.length > 0) appendMessagesToWall(uploadedMessages);
 
       uploadForm.reset();
       stagedFiles = [];
@@ -207,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     statusDiv.style.color = type === 'error' ? '#C47A70' : '#4C7A5A';
   }
 
-  // Load Initial Gallery & Messages
+  // Load Initial Gallery
   async function loadGallery() {
     if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE_YOUR_WEB_APP_URL_HERE')) return;
 
@@ -216,9 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.items && Array.isArray(data.items)) {
         appendMediaToGallery(data.items);
-      }
-      if (data.messages && Array.isArray(data.messages)) {
-        appendMessagesToWall(data.messages);
       }
     } catch (err) {
       console.error('Could not load gallery from Google Drive:', err);
@@ -272,38 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (photoGrid) {
         photoGrid.prepend(card);
       }
-    });
-  }
-
-  function appendMessagesToWall(messages) {
-    if (!messageGrid) return;
-    messages.forEach(msg => {
-      if (!msg.message) return;
-
-      const card = document.createElement('article');
-      card.className = 'message-card';
-
-      const textEl = document.createElement('p');
-      textEl.textContent = msg.message;
-
-      const footerEl = document.createElement('div');
-      footerEl.className = 'message-card-footer';
-
-      const authorEl = document.createElement('strong');
-      authorEl.textContent = msg.guestName || 'A Loving Guest';
-
-      const dateEl = document.createElement('time');
-      if (msg.createdAt) {
-        const d = new Date(msg.createdAt);
-        dateEl.textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      }
-
-      footerEl.appendChild(authorEl);
-      footerEl.appendChild(dateEl);
-      card.appendChild(textEl);
-      card.appendChild(footerEl);
-
-      messageGrid.prepend(card);
     });
   }
 
