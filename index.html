@@ -114,6 +114,26 @@
     <p>With love, gratitude, and beautiful memories.</p>
   </footer>
 
+  <!-- Lightbox Modal -->
+  <dialog id="lightbox" class="lightbox" aria-label="Media viewer">
+    <div class="lightbox-wrapper">
+      <button type="button" class="lightbox-btn close" id="lightboxClose" aria-label="Close viewer">&times;</button>
+      
+      <button type="button" class="lightbox-btn prev" id="lightboxPrev" aria-label="Previous memory">&#10094;</button>
+      
+      <div class="lightbox-stage" id="lightboxStage">
+        <!-- Dynamic <img> or <video> injected here -->
+      </div>
+      
+      <button type="button" class="lightbox-btn next" id="lightboxNext" aria-label="Next memory">&#10095;</button>
+
+      <div class="lightbox-caption" id="lightboxCaption" hidden>
+        <strong id="lightboxAuthor"></strong>
+        <p id="lightboxMessage"></p>
+      </div>
+    </div>
+  </dialog>
+
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
