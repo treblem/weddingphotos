@@ -1,98 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bert & Beth | Wedding Memories</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bert & Beth | Wedding Memories</title>
+
+  <!-- Social Sharing / Open Graph -->
+  <meta property="og:title" content="Bert & Beth | Wedding Memories">
+  <meta property="og:description" content="Share your photos and videos from our special day!">
+  <meta property="og:type" content="website">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="hero">
-  <div class="ornament">✦</div>
-  <p class="eyebrow">OUR WEDDING MEMORIES</p>
-  <h1>Bert <span>&amp;</span> Beth</h1>
-  <p class="subtitle">Help us collect the beautiful moments from our special day.</p>
-  <div class="actions">
-    <a class="btn primary" href="#upload">📸 Upload Photos &amp; Videos</a>
-    <a class="btn ghost" href="#gallery">🖼 View Gallery</a>
-  </div>
-</header>
 
-<main>
-<section class="section intro">
-  <p class="script">Every moment matters.</p>
-  <h2>Share Your Memories With Us</h2>
-  <p>Were you there? Upload the photos and videos you captured so Bert &amp; Beth can relive the day through everyone's eyes.</p>
-</section>
-
-<section id="upload" class="section">
-  <div class="card">
-    <div class="section-title">
-      <span>01</span>
-      <div><h2>Upload a Memory</h2><p>Photos and videos from your phone are welcome.</p></div>
+  <header class="hero">
+    <div class="ornament" aria-hidden="true">✦</div>
+    <p class="eyebrow">OUR WEDDING MEMORIES</p>
+    <h1>Bert <span>&amp;</span> Beth</h1>
+    <p class="subtitle">Help us collect the beautiful moments from our special day.</p>
+    <div class="actions">
+      <a class="btn primary" href="#upload">📸 Upload Photos &amp; Videos</a>
+      <a class="btn ghost" href="#gallery">🖼 View Gallery</a>
     </div>
+  </header>
 
-    <form id="uploadForm">
-      <label class="dropzone" id="dropzone">
-        <input id="mediaInput" type="file" accept="image/*,video/*" multiple>
-        <div class="upload-icon">＋</div>
-        <strong>Choose Photos or Videos</strong>
-        <small>Tap here to select one or more files</small>
-      </label>
+  <main>
+    <section class="section intro">
+      <p class="script" aria-hidden="true">Every moment matters.</p>
+      <h2>Share Your Memories With Us</h2>
+      <p>Were you there? Upload the photos and videos you captured so Bert &amp; Beth can relive the day through everyone's eyes.</p>
+    </section>
 
-      <div id="fileList" class="file-list"></div>
+    <section id="upload" class="section">
+      <div class="card">
+        <div class="section-title">
+          <span aria-hidden="true">01</span>
+          <div>
+            <h2>Upload a Memory</h2>
+            <p>Photos and videos from your phone are welcome.</p>
+          </div>
+        </div>
 
-      <div class="fields">
-        <label>Guest name <span>(optional)</span>
-          <input id="guestName" type="text" maxlength="80" placeholder="Your name">
-        </label>
-        <label>Message <span>(optional)</span>
-          <textarea id="message" maxlength="300" placeholder="A little note for the couple..."></textarea>
-        </label>
+        <form id="uploadForm" novalidate>
+          <div class="dropzone" id="dropzone">
+            <input id="mediaInput" type="file" accept="image/*,video/*" multiple class="visually-hidden">
+            <label for="mediaInput" class="dropzone-trigger">
+              <span class="upload-icon" aria-hidden="true">＋</span>
+              <strong>Choose Photos or Videos</strong>
+              <small>Tap here or drag and drop files</small>
+            </label>
+          </div>
+
+          <div id="fileList" class="file-list" aria-live="polite"></div>
+
+          <div class="fields">
+            <div class="field-group">
+              <label for="guestName">Guest name <span class="hint">(optional)</span></label>
+              <input id="guestName" name="guestName" type="text" maxlength="80" placeholder="Your name" autocomplete="name">
+            </div>
+
+            <div class="field-group">
+              <label for="message">Message <span class="hint">(optional)</span></label>
+              <textarea id="message" name="message" maxlength="300" placeholder="A little note for the couple..."></textarea>
+            </div>
+          </div>
+
+          <!-- Upload Progress indicator -->
+          <div id="uploadProgress" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" hidden>
+            <div class="progress-fill" style="width: 0%;"></div>
+          </div>
+
+          <button class="btn primary wide" type="submit" id="submitBtn">❤️ Share With Bert &amp; Beth</button>
+          <div id="status" class="status" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+
+    <section id="gallery" class="section">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">WEDDING GALLERY</p>
+          <h2>Our Memories</h2>
+        </div>
       </div>
 
-      <button class="btn primary wide" type="submit">❤️ Share With Bert &amp; Beth</button>
-      <div id="status" class="status"></div>
-    </form>
-  </div>
-</section>
+      <div class="gallery-category">
+        <div class="gallery-category-title">
+          <h3>📸 Photos</h3>
+          <span>Our favorite moments</span>
+        </div>
+        <div id="photoGrid" class="gallery-grid" aria-live="polite"></div>
+      </div>
 
-<section id="gallery" class="section">
-  <div class="section-title">
-    <div>
-      <p class="eyebrow">WEDDING GALLERY</p>
-      <h2>Our Memories</h2>
-    </div>
-  </div>
+      <div class="gallery-category">
+        <div class="gallery-category-title">
+          <h3>🎥 Videos</h3>
+          <span>Moments in motion</span>
+        </div>
+        <div id="videoGrid" class="gallery-grid" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
 
-  <div class="gallery-category">
-    <div class="gallery-category-title">
-      <h3>📸 Photos</h3>
-      <span>Our favorite moments</span>
-    </div>
-    <div id="photoGrid" class="gallery-grid"></div>
-  </div>
+  <footer>
+    <div class="ornament" aria-hidden="true">✦</div>
+    <strong>Bert &amp; Beth</strong>
+    <p>With love, gratitude, and beautiful memories.</p>
+  </footer>
 
-  <div class="gallery-category">
-    <div class="gallery-category-title">
-      <h3>🎥 Videos</h3>
-      <span>Moments in motion</span>
-    </div>
-    <div id="videoGrid" class="gallery-grid"></div>
-  </div>
-</section>
-</main>
-
-<footer>
-  <div class="ornament">✦</div>
-  <strong>Bert &amp; Beth</strong>
-  <p>With love, gratitude, and beautiful memories.</p>
-</footer>
-
-<script src="config.js"></script>
-<script src="app.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
