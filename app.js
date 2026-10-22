@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Supabase Configuration
+  const SUPABASE_URL = (window.SUPABASE_URL || '').replace(/\/$/, '');
+  const SUPABASE_KEY = window.SUPABASE_ANON_KEY || '';
+  const BUCKET = window.SUPABASE_BUCKET || 'wedding-media';
+
   // DOM Elements
   const dropzone = document.getElementById('dropzone');
   const mediaInput = document.getElementById('mediaInput');
@@ -8,16 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const guestNameInput = document.getElementById('guestName');
   const messageInput = document.getElementById('message');
   const uploadProgress = document.getElementById('uploadProgress');
-  const progressFill = uploadProgress.querySelector('.progress-fill');
+  const progressFill = uploadProgress ? uploadProgress.querySelector('.progress-fill') : null;
   const statusDiv = document.getElementById('status');
   const photoGrid = document.getElementById('photoGrid');
   const videoGrid = document.getElementById('videoGrid');
 
-  // Internal state tracking selected files
   let stagedFiles = [];
 
   // =========================================================================
-  // Drag-and-Drop Event Listeners
+  // Drag-and-Drop & File Selection
   // =========================================================================
   ['dragenter', 'dragover'].forEach(eventName => {
     dropzone.addEventListener(eventName, (e) => {
@@ -43,21 +47,16 @@ document.addEventListener('DOMContentLoaded', () => {
   mediaInput.addEventListener('change', (e) => {
     const selectedFiles = Array.from(e.target.files);
     handleNewFiles(selectedFiles);
-    // Reset file input so selecting the same file again still fires change event
     mediaInput.value = '';
   });
 
-  // =========================================================================
-  // File Staging & Thumbnail Previews
-  // =========================================================================
   function handleNewFiles(files) {
-    const validMedia = files.filter(file => 
+    const validMedia = files.filter(file =>
       file.type.startsWith('image/') || file.type.startsWith('video/')
     );
 
     if (validMedia.length === 0) return;
 
-    // Append new files avoiding exact duplicates
     validMedia.forEach(file => {
       const exists = stagedFiles.some(f => f.name === file.name && f.size === file.size);
       if (!exists) {
@@ -91,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
         item.appendChild(video);
       }
 
-      // Close / Remove button
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
       removeBtn.setAttribute('aria-label', `Remove ${file.name}`);
@@ -125,94 +123,137 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // Form Submission & Progress Tracking
+  // Supabase Direct Upload & Metadata Handling
   // =========================================================================
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      showStatus('Supabase configuration is missing in config.js.', 'error');
+      return;
+    }
 
     if (stagedFiles.length === 0) {
       showStatus('Please select at least one photo or video to upload.', 'error');
       return;
     }
 
-    const endpoint = (window.CONFIG && window.CONFIG.UPLOAD_URL) || '/api/upload';
+    const guestName = guestNameInput.value.trim();
+    const message = messageInput.value.trim();
 
-    const formData = new FormData();
-    formData.append('guestName', guestNameInput.value.trim());
-    formData.append('message', messageInput.value.trim());
-    stagedFiles.forEach(file => {
-      formData.append('media', file);
-    });
-
-    // UI state during upload
     submitBtn.disabled = true;
     submitBtn.textContent = 'Uploading...';
-    uploadProgress.hidden = false;
-    progressFill.style.width = '0%';
-    uploadProgress.setAttribute('aria-valuenow', '0');
+    if (uploadProgress) {
+      uploadProgress.hidden = false;
+      progressFill.style.width = '0%';
+    }
     statusDiv.textContent = '';
 
-    try {
-      const response = await uploadWithProgress(endpoint, formData, (percent) => {
-        progressFill.style.width = `${percent}%`;
-        uploadProgress.setAttribute('aria-valuenow', Math.round(percent));
-      });
+    const uploadedItems = [];
 
-      showStatus('Thank you! Your memories were uploaded successfully.', 'success');
-      
-      // Update gallery live if the API returned newly created media items
-      if (response && response.items) {
-        appendMediaToGallery(response.items);
+    try {
+      for (let i = 0; i < stagedFiles.length; i++) {
+        const file = stagedFiles[i];
+        const isVideo = file.type.startsWith('video/');
+        const folder = isVideo ? 'videos' : 'photos';
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${safeName}`;
+
+        // 1. Upload file to Supabase Storage
+        await uploadFileToSupabase(filePath, file, (filePercent) => {
+          if (uploadProgress && progressFill) {
+            const overallPercent = ((i + filePercent / 100) / stagedFiles.length) * 100;
+            progressFill.style.width = `${overallPercent}%`;
+            uploadProgress.setAttribute('aria-valuenow', Math.round(overallPercent));
+          }
+        });
+
+        // 2. Construct Public URL
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filePath}`;
+
+        const itemData = {
+          type: isVideo ? 'video' : 'image',
+          url: publicUrl,
+          file_path: filePath,
+          guest_name: guestName,
+          message: message
+        };
+
+        // 3. Optional: Save guest name & message to Supabase "memories" table if it exists
+        await saveMetadataToTable(itemData);
+
+        uploadedItems.push({
+          type: itemData.type,
+          url: itemData.url,
+          guestName: guestName,
+          message: message
+        });
       }
 
-      // Reset form
+      showStatus('Thank you! Your memories were uploaded successfully.', 'success');
+      appendMediaToGallery(uploadedItems);
+
       uploadForm.reset();
       stagedFiles = [];
       renderPreviews();
     } catch (err) {
-      showStatus(err.message || 'Upload failed. Please check your connection and try again.', 'error');
+      showStatus(err.message || 'Upload failed. Check your bucket permissions.', 'error');
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = '❤️ Share With Bert & Beth';
-      uploadProgress.hidden = true;
+      if (uploadProgress) uploadProgress.hidden = true;
     }
   });
 
-  function uploadWithProgress(url, formData, onProgress) {
+  function uploadFileToSupabase(filePath, file, onProgress) {
     return new Promise((resolve, reject) => {
+      const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${filePath}`;
       const xhr = new XMLHttpRequest();
 
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable && onProgress) {
-          const percentComplete = (e.loaded / e.total) * 100;
-          onProgress(percentComplete);
+          onProgress((e.loaded / e.total) * 100);
         }
       });
 
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data);
-          } catch {
-            resolve({ success: true });
-          }
+          resolve();
         } else {
-          reject(new Error(`Server error: ${xhr.status} ${xhr.statusText}`));
+          let errMsg = `Upload error (${xhr.status})`;
+          try {
+            const resp = JSON.parse(xhr.responseText);
+            if (resp.message || resp.error) errMsg = resp.message || resp.error;
+          } catch {}
+          reject(new Error(errMsg));
         }
       });
 
-      xhr.addEventListener('error', () => {
-        reject(new Error('Network error during upload.'));
-      });
-
-      xhr.addEventListener('abort', () => {
-        reject(new Error('Upload was cancelled.'));
-      });
-
+      xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
       xhr.open('POST', url, true);
-      xhr.send(formData);
+      xhr.setRequestHeader('apikey', SUPABASE_KEY);
+      xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_KEY}`);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.setRequestHeader('x-upsert', 'false');
+      xhr.send(file);
     });
+  }
+
+  async function saveMetadataToTable(itemData) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/memories`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(itemData)
+      });
+    } catch {
+      // Ignore if the optional 'memories' table hasn't been created yet
+    }
   }
 
   function showStatus(text, type) {
@@ -221,18 +262,102 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // Gallery Rendering Utility
+  // Load Existing Memories from Supabase (Table or Storage Bucket Fallback)
+  // =========================================================================
+  async function loadGallery() {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return;
+
+    // 1. Try loading from the 'memories' table first (includes guest names & messages)
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/memories?select=*&order=created_at.asc`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
+
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          const items = rows.map(r => ({
+            type: r.type || (r.url && r.url.match(/\.(mp4|mov|webm)$/i) ? 'video' : 'image'),
+            url: r.url,
+            guestName: r.guest_name || '',
+            message: r.message || ''
+          }));
+          appendMediaToGallery(items);
+          return;
+        }
+      }
+    } catch {}
+
+    // 2. Fallback: List files directly from the 'wedding-media' storage bucket folders
+    try {
+      const folders = ['photos', 'videos', ''];
+      const allItems = [];
+
+      for (const folder of folders) {
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${BUCKET}`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            prefix: folder,
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'created_at', order: 'asc' }
+          })
+        });
+
+        if (res.ok) {
+          const files = await res.json();
+          files.forEach(f => {
+            if (!f.id || f.name === '.emptyFolderPlaceholder') return;
+            const fullPath = folder ? `${folder}/${f.name}` : f.name;
+            const isVideo = folder === 'videos' || (f.metadata && f.metadata.mimetype && f.metadata.mimetype.startsWith('video/')) || /\.(mp4|mov|webm)$/i.test(f.name);
+            allItems.push({
+              type: isVideo ? 'video' : 'image',
+              url: `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${fullPath}`,
+              guestName: '',
+              message: ''
+            });
+          });
+        }
+      }
+
+      if (allItems.length > 0) {
+        appendMediaToGallery(allItems);
+      }
+    } catch (err) {
+      console.error('Could not load gallery from Supabase:', err);
+    }
+  }
+
+  // =========================================================================
+  // Gallery Rendering & Lightbox Controller
   // =========================================================================
   function appendMediaToGallery(items) {
     items.forEach(item => {
       const card = document.createElement('div');
       card.className = 'gallery-item';
 
+      card.dataset.type = item.type || 'image';
+      card.dataset.url = item.url;
+      card.dataset.guestName = item.guestName || '';
+      card.dataset.message = item.message || '';
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `View ${item.type || 'photo'} by ${item.guestName || 'a guest'}`);
+
       if (item.type === 'video') {
         const video = document.createElement('video');
         video.src = item.url;
-        video.controls = true;
         video.preload = 'metadata';
+        video.muted = true;
+        video.playsInline = true;
         card.appendChild(video);
       } else {
         const img = document.createElement('img');
@@ -245,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (item.guestName || item.message) {
         const meta = document.createElement('div');
         meta.className = 'item-meta';
-        meta.textContent = item.guestName || 'A guest';
+        meta.textContent = item.guestName ? `📸 ${item.guestName}` : 'Wedding memory';
         card.appendChild(meta);
       }
 
@@ -256,4 +381,144 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Lightbox Elements & Logic
+  const lightbox = document.getElementById('lightbox');
+  if (lightbox) {
+    const lightboxStage = document.getElementById('lightboxStage');
+    const lightboxClose = document.getElementById('lightboxClose');
+    const lightboxPrev = document.getElementById('lightboxPrev');
+    const lightboxNext = document.getElementById('lightboxNext');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    const lightboxAuthor = document.getElementById('lightboxAuthor');
+    const lightboxMessage = document.getElementById('lightboxMessage');
+
+    let galleryElements = [];
+    let currentIndex = 0;
+    let touchStartX = 0;
+
+    const gallerySection = document.getElementById('gallery');
+    gallerySection.addEventListener('click', (e) => {
+      const card = e.target.closest('.gallery-item');
+      if (card) openLightbox(card);
+    });
+
+    gallerySection.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const card = e.target.closest('.gallery-item');
+        if (card) {
+          e.preventDefault();
+          openLightbox(card);
+        }
+      }
+    });
+
+    function openLightbox(clickedCard) {
+      galleryElements = Array.from(document.querySelectorAll('.gallery-item'));
+      currentIndex = galleryElements.indexOf(clickedCard);
+      if (currentIndex === -1) return;
+
+      updateLightboxContent();
+      lightbox.showModal();
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      stopActiveVideo();
+      lightbox.close();
+      document.body.style.overflow = '';
+    }
+
+    function showNext() {
+      if (galleryElements.length <= 1) return;
+      currentIndex = (currentIndex + 1) % galleryElements.length;
+      updateLightboxContent();
+    }
+
+    function showPrev() {
+      if (galleryElements.length <= 1) return;
+      currentIndex = (currentIndex - 1 + galleryElements.length) % galleryElements.length;
+      updateLightboxContent();
+    }
+
+    function stopActiveVideo() {
+      const activeVideo = lightboxStage.querySelector('video');
+      if (activeVideo) {
+        activeVideo.pause();
+        activeVideo.removeAttribute('src');
+        activeVideo.load();
+      }
+    }
+
+    function updateLightboxContent() {
+      stopActiveVideo();
+      lightboxStage.innerHTML = '';
+
+      const activeCard = galleryElements[currentIndex];
+      const type = activeCard.dataset.type || 'image';
+      const url = activeCard.dataset.url;
+      const guestName = activeCard.dataset.guestName || '';
+      const message = activeCard.dataset.message || '';
+
+      if (type === 'video') {
+        const video = document.createElement('video');
+        video.src = url;
+        video.controls = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        lightboxStage.appendChild(video);
+      } else {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = guestName ? `Photo shared by ${guestName}` : 'Wedding memory';
+        lightboxStage.appendChild(img);
+      }
+
+      if (guestName || message) {
+        lightboxAuthor.textContent = guestName;
+        lightboxMessage.textContent = message;
+        lightboxCaption.hidden = false;
+      } else {
+        lightboxCaption.hidden = true;
+      }
+
+      const hideNav = galleryElements.length <= 1;
+      lightboxPrev.hidden = hideNav;
+      lightboxNext.hidden = hideNav;
+    }
+
+    lightboxClose.addEventListener('click', closeLightbox);
+    lightboxNext.addEventListener('click', showNext);
+    lightboxPrev.addEventListener('click', showPrev);
+
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox || e.target.classList.contains('lightbox-wrapper') || e.target === lightboxStage) {
+        closeLightbox();
+      }
+    });
+
+    lightbox.addEventListener('close', () => {
+      stopActiveVideo();
+      document.body.style.overflow = '';
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!lightbox.open) return;
+      if (e.key === 'ArrowRight') showNext();
+      if (e.key === 'ArrowLeft') showPrev();
+    });
+
+    lightbox.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    lightbox.addEventListener('touchend', (e) => {
+      const swipeDistance = e.changedTouches[0].screenX - touchStartX;
+      if (Math.abs(swipeDistance) > 50) {
+        swipeDistance < 0 ? showNext() : showPrev();
+      }
+    }, { passive: true });
+  }
+
+  loadGallery();
 });
