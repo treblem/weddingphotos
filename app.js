@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const SCRIPT_URL = window.GOOGLE_SCRIPT_URL || '';
 
-  // DOM Elements
   const dropzone = document.getElementById('dropzone');
   const mediaInput = document.getElementById('mediaInput');
   const fileList = document.getElementById('fileList');
@@ -14,12 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusDiv = document.getElementById('status');
   const photoGrid = document.getElementById('photoGrid');
   const videoGrid = document.getElementById('videoGrid');
+  const messageGrid = document.getElementById('messageGrid');
 
   let stagedFiles = [];
 
-  // =========================================================================
-  // Drag-and-Drop & File Selection
-  // =========================================================================
+  // Drag-and-drop & File Selection
   ['dragenter', 'dragover'].forEach(eventName => {
     dropzone.addEventListener(eventName, (e) => {
       e.preventDefault();
@@ -37,13 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   dropzone.addEventListener('drop', (e) => {
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleNewFiles(droppedFiles);
+    handleNewFiles(Array.from(e.dataTransfer.files));
   });
 
   mediaInput.addEventListener('change', (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    handleNewFiles(selectedFiles);
+    handleNewFiles(Array.from(e.target.files));
     mediaInput.value = '';
   });
 
@@ -55,15 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (validMedia.length === 0) return;
 
     validMedia.forEach(file => {
-      // Google Apps Script has a ~50MB payload limit per file
-      if (file.size > 45 * 1024 * 1024) {
-        showStatus(`"${file.name}" is over 45MB. Please choose a shorter video or photo.`, 'error');
+      if (file.size > 35 * 1024 * 1024) {
+        showStatus(`"${file.name}" is over 35MB. Please choose a smaller file.`, 'error');
         return;
       }
       const exists = stagedFiles.some(f => f.name === file.name && f.size === file.size);
-      if (!exists) {
-        stagedFiles.push(file);
-      }
+      if (!exists) stagedFiles.push(file);
     });
 
     renderPreviews();
@@ -71,11 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderPreviews() {
     fileList.innerHTML = '';
-
     stagedFiles.forEach((file, index) => {
       const item = document.createElement('div');
       item.className = 'file-list-item';
-
       const blobUrl = URL.createObjectURL(file);
 
       if (file.type.startsWith('image/')) {
@@ -97,20 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
       removeBtn.setAttribute('aria-label', `Remove ${file.name}`);
       removeBtn.innerHTML = '&times;';
       Object.assign(removeBtn.style, {
-        position: 'absolute',
-        top: '4px',
-        right: '4px',
-        background: 'rgba(0, 0, 0, 0.65)',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '50%',
-        width: '22px',
-        height: '22px',
-        cursor: 'pointer',
-        fontSize: '14px',
-        lineHeight: '1',
-        display: 'grid',
-        placeContent: 'center'
+        position: 'absolute', top: '4px', right: '4px',
+        background: 'rgba(0, 0, 0, 0.65)', color: '#fff',
+        border: 'none', borderRadius: '50%', width: '22px', height: '22px',
+        cursor: 'pointer', fontSize: '14px', lineHeight: '1', display: 'grid', placeContent: 'center'
       });
 
       removeBtn.addEventListener('click', (e) => {
@@ -124,36 +105,46 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // =========================================================================
-  // Upload Files to Google Drive via Apps Script
-  // =========================================================================
+  // Form Submission
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE_YOUR_WEB_APP_URL_HERE')) {
-      showStatus('Please paste your Google Apps Script Web App URL in config.js.', 'error');
-      return;
-    }
-
-    if (stagedFiles.length === 0) {
-      showStatus('Please select at least one photo or video to upload.', 'error');
+      showStatus('Please configure your Google Apps Script URL in config.js.', 'error');
       return;
     }
 
     const guestName = guestNameInput.value.trim();
     const message = messageInput.value.trim();
 
+    if (stagedFiles.length === 0 && !message) {
+      showStatus('Please select a photo/video or write a message for Bert & Beth.', 'error');
+      return;
+    }
+
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading to Google Drive...';
+    submitBtn.textContent = 'Sharing with Bert & Beth...';
     if (uploadProgress && progressFill) {
       uploadProgress.hidden = false;
-      progressFill.style.width = '10%';
+      progressFill.style.width = '15%';
     }
     statusDiv.textContent = '';
 
     const uploadedItems = [];
+    const uploadedMessages = [];
 
     try {
+      if (stagedFiles.length === 0 && message) {
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          body: JSON.stringify({ guestName, message })
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Failed to save message');
+        if (result.guestMessage) uploadedMessages.push(result.guestMessage);
+      }
+
       for (let i = 0; i < stagedFiles.length; i++) {
         const file = stagedFiles[i];
         const base64 = await fileToBase64(file);
@@ -163,22 +154,21 @@ document.addEventListener('DOMContentLoaded', () => {
           mimeType: file.type || 'application/octet-stream',
           base64: base64,
           guestName: guestName,
-          message: message
+          message: message,
+          skipMessageLog: i > 0
         };
 
-        // Use text/plain to avoid CORS preflight blocks on Google Apps Script
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          redirect: 'follow',
           body: JSON.stringify(payload)
         });
 
         const result = await response.json();
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to upload to Google Drive');
-        }
+        if (!result.success) throw new Error(result.error || 'Failed to upload file');
 
-        uploadedItems.push(result.item);
+        if (result.item) uploadedItems.push(result.item);
+        if (result.guestMessage) uploadedMessages.push(result.guestMessage);
 
         if (uploadProgress && progressFill) {
           const percent = Math.round(((i + 1) / stagedFiles.length) * 100);
@@ -187,14 +177,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      showStatus('Thank you! Your memories were saved to Google Drive.', 'success');
-      appendMediaToGallery(uploadedItems);
+      showStatus('Thank you! Your memory has been shared successfully.', 'success');
+      if (uploadedItems.length > 0) appendMediaToGallery(uploadedItems);
+      if (uploadedMessages.length > 0) appendMessagesToWall(uploadedMessages);
 
       uploadForm.reset();
       stagedFiles = [];
       renderPreviews();
     } catch (err) {
-      showStatus(err.message || 'Upload failed. Check your Google Script deployment permissions.', 'error');
+      showStatus(err.message || 'Upload failed. Check your network or Apps Script permissions.', 'error');
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = '❤️ Share With Bert & Beth';
@@ -205,10 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        const base64String = reader.result.split(',')[1];
-        resolve(base64String);
-      };
+      reader.onload = () => resolve(reader.result.split(',')[1]);
       reader.onerror = error => reject(error);
       reader.readAsDataURL(file);
     });
@@ -219,31 +207,28 @@ document.addEventListener('DOMContentLoaded', () => {
     statusDiv.style.color = type === 'error' ? '#C47A70' : '#4C7A5A';
   }
 
-  // =========================================================================
-  // Load Existing Gallery from Google Drive
-  // =========================================================================
+  // Load Initial Gallery & Messages
   async function loadGallery() {
     if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE_YOUR_WEB_APP_URL_HERE')) return;
 
     try {
-      const res = await fetch(SCRIPT_URL);
+      const res = await fetch(SCRIPT_URL, { redirect: 'follow' });
       const data = await res.json();
       if (data.items && Array.isArray(data.items)) {
         appendMediaToGallery(data.items);
+      }
+      if (data.messages && Array.isArray(data.messages)) {
+        appendMessagesToWall(data.messages);
       }
     } catch (err) {
       console.error('Could not load gallery from Google Drive:', err);
     }
   }
 
-  // =========================================================================
-  // Gallery Rendering & Lightbox Controller
-  // =========================================================================
   function appendMediaToGallery(items) {
     items.forEach(item => {
       const card = document.createElement('div');
       card.className = 'gallery-item';
-
       card.dataset.type = item.type || 'image';
       card.dataset.url = item.url;
       card.dataset.guestName = item.guestName || '';
@@ -269,7 +254,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (item.guestName || item.message) {
         const meta = document.createElement('div');
         meta.className = 'item-meta';
-        meta.textContent = item.guestName ? `📸 ${item.guestName}` : 'Wedding memory';
+
+        const authorEl = document.createElement('strong');
+        authorEl.textContent = item.guestName ? `📸 ${item.guestName}` : 'Wedding Memory';
+        meta.appendChild(authorEl);
+
+        if (item.message) {
+          const msgEl = document.createElement('span');
+          msgEl.textContent = item.message;
+          meta.appendChild(msgEl);
+        }
         card.appendChild(meta);
       }
 
@@ -281,7 +275,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Lightbox Controller
+  function appendMessagesToWall(messages) {
+    if (!messageGrid) return;
+    messages.forEach(msg => {
+      if (!msg.message) return;
+
+      const card = document.createElement('article');
+      card.className = 'message-card';
+
+      const textEl = document.createElement('p');
+      textEl.textContent = msg.message;
+
+      const footerEl = document.createElement('div');
+      footerEl.className = 'message-card-footer';
+
+      const authorEl = document.createElement('strong');
+      authorEl.textContent = msg.guestName || 'A Loving Guest';
+
+      const dateEl = document.createElement('time');
+      if (msg.createdAt) {
+        const d = new Date(msg.createdAt);
+        dateEl.textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      footerEl.appendChild(authorEl);
+      footerEl.appendChild(dateEl);
+      card.appendChild(textEl);
+      card.appendChild(footerEl);
+
+      messageGrid.prepend(card);
+    });
+  }
+
+  // Lightbox
   const lightbox = document.getElementById('lightbox');
   if (lightbox) {
     const lightboxStage = document.getElementById('lightboxStage');
