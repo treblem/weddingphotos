@@ -218,12 +218,17 @@ document.addEventListener('DOMContentLoaded', () => {
       card.setAttribute('role', 'button');
 
       if (item.type === 'video') {
-        const video = document.createElement('video');
-        video.src = item.url;
-        video.preload = 'metadata';
-        video.muted = true;
-        video.playsInline = true;
-        card.appendChild(video);
+        // Extract Google Drive File ID from URL
+        const fileIdMatch = item.url.match(/id=([a-zA-Z0-9_-]+)/) || item.url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        const fileId = fileIdMatch ? fileIdMatch[1] : '';
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+        iframe.width = "100%";
+        iframe.height = "100%";
+        iframe.style.border = "none";
+        iframe.style.pointerEvents = "none"; // Allows clicking the card to open lightbox
+        card.appendChild(iframe);
       } else {
         const img = document.createElement('img');
         img.src = item.thumbnailUrl || item.url;
@@ -256,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Lightbox
+  // Lightbox with Google Drive Preview Iframe
   const lightbox = document.getElementById('lightbox');
   if (lightbox) {
     const lightboxStage = document.getElementById('lightboxStage');
@@ -286,7 +291,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closeLightbox() {
-      stopActiveVideo();
       lightbox.close();
       document.body.style.overflow = '';
     }
@@ -303,17 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateLightboxContent();
     }
 
-    function stopActiveVideo() {
-      const activeVideo = lightboxStage.querySelector('video');
-      if (activeVideo) {
-        activeVideo.pause();
-        activeVideo.removeAttribute('src');
-        activeVideo.load();
-      }
-    }
-
     function updateLightboxContent() {
-      stopActiveVideo();
       lightboxStage.innerHTML = '';
 
       const activeCard = galleryElements[currentIndex];
@@ -323,12 +317,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const message = activeCard.dataset.message || '';
 
       if (type === 'video') {
-        const video = document.createElement('video');
-        video.src = url;
-        video.controls = true;
-        video.autoplay = true;
-        video.playsInline = true;
-        lightboxStage.appendChild(video);
+        const fileIdMatch = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        const fileId = fileIdMatch ? fileIdMatch[1] : '';
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+        iframe.width = "100%";
+        iframe.height = "100%";
+        iframe.style.border = "none";
+        iframe.style.borderRadius = "var(--radius-sm)";
+        iframe.setAttribute('allow', 'autoplay');
+        lightboxStage.appendChild(iframe);
       } else {
         const img = document.createElement('img');
         img.src = url;
