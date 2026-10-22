@@ -5,34 +5,24 @@
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-sans: 'Montserrat', system-ui, -apple-system, sans-serif;
 
-  /* Color Palette */
   --color-bg: #FAF7F2;
   --color-surface: #FFFFFF;
   --color-card-border: #EFE8DF;
   --color-text-main: #2D2724;
   --color-text-muted: #796E65;
   
-  /* Accents */
   --color-gold: #C29B38;
-  --color-gold-hover: #AB852A;
   --color-rose: #C47A70;
   --color-rose-hover: #AF665D;
   --color-focus-ring: rgba(196, 122, 112, 0.35);
 
-  /* Elevation & Borders */
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
   --shadow-sm: 0 4px 12px rgba(45, 39, 36, 0.05);
-  --shadow-md: 0 10px 30px rgba(45, 39, 36, 0.08);
-
-  /* Transitions */
   --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ==========================================================================
-   Base & Reset
-   ========================================================================== */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -70,9 +60,6 @@ img, video {
   border: 0;
 }
 
-/* ==========================================================================
-   Typography & Shared Elements
-   ========================================================================== */
 h1, h2, h3, .script {
   font-family: var(--font-serif);
   font-weight: 600;
@@ -115,9 +102,7 @@ h1, h2, h3, .script {
   line-height: 1;
 }
 
-/* ==========================================================================
-   Hero Section
-   ========================================================================== */
+/* Hero */
 .hero {
   text-align: center;
   padding: 5rem 1.5rem 3.5rem;
@@ -177,7 +162,6 @@ h1, h2, h3, .script {
 .btn.primary:hover:not(:disabled) {
   background-color: var(--color-rose-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(196, 122, 112, 0.35);
 }
 
 .btn.primary:disabled {
@@ -200,9 +184,6 @@ h1, h2, h3, .script {
   width: 100%;
 }
 
-/* ==========================================================================
-   Intro Section
-   ========================================================================== */
 .intro {
   text-align: center;
   max-width: 680px;
@@ -224,9 +205,7 @@ h1, h2, h3, .script {
   color: var(--color-text-muted);
 }
 
-/* ==========================================================================
-   Card & Form Styles
-   ========================================================================== */
+/* Card & Form */
 .card {
   background-color: var(--color-surface);
   border: 1px solid var(--color-card-border);
@@ -271,11 +250,6 @@ h1, h2, h3, .script {
   place-content: center;
   border-radius: 50%;
   background: rgba(196, 122, 112, 0.1);
-  transition: var(--transition-smooth);
-}
-
-.dropzone:hover .upload-icon {
-  transform: scale(1.1);
 }
 
 .dropzone strong {
@@ -383,9 +357,7 @@ textarea {
   text-align: center;
 }
 
-/* ==========================================================================
-   Gallery Grids
-   ========================================================================== */
+/* Gallery Grids */
 .gallery-category {
   margin-bottom: 3.5rem;
 }
@@ -457,22 +429,87 @@ textarea {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 1.5rem 0.75rem 0.75rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  padding: 1.75rem 0.75rem 0.65rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.35) 65%, transparent 100%);
   color: #FFF;
-  font-size: 0.8rem;
-  opacity: 0;
-  transition: opacity 0.25s ease;
+}
+
+.gallery-item .item-meta strong {
+  display: block;
+  font-size: 0.82rem;
+  color: #FFF;
+}
+
+.gallery-item .item-meta span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.88);
+  margin-top: 0.15rem;
+}
+
+/* Guestbook Message Cards */
+.message-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+.message-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.message-card::before {
+  content: "“";
+  font-family: var(--font-serif);
+  font-size: 3.5rem;
+  line-height: 1;
+  color: rgba(194, 155, 56, 0.25);
+  position: absolute;
+  top: 0.5rem;
+  right: 1rem;
   pointer-events: none;
 }
 
-.gallery-item:hover .item-meta {
-  opacity: 1;
+.message-card p {
+  font-size: 0.98rem;
+  color: var(--color-text-main);
+  font-style: italic;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
 }
 
-/* ==========================================================================
-   Lightbox Modal
-   ========================================================================== */
+.message-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--color-card-border);
+  padding-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.message-card-footer strong {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  color: var(--color-rose);
+}
+
+.message-card-footer time {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+/* Lightbox Modal */
 .lightbox {
   border: none;
   background: transparent;
@@ -520,12 +557,6 @@ textarea {
   object-fit: contain;
   border-radius: var(--radius-sm);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
-  animation: lightboxFadeIn 0.25s ease-out;
-}
-
-@keyframes lightboxFadeIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
 }
 
 .lightbox-btn {
@@ -542,7 +573,6 @@ textarea {
   font-size: 1.25rem;
   transition: var(--transition-smooth);
   z-index: 10;
-  user-select: none;
 }
 
 .lightbox-btn:hover {
@@ -569,11 +599,6 @@ textarea {
   transform: translateY(-50%);
 }
 
-.lightbox-btn.prev:hover,
-.lightbox-btn.next:hover {
-  transform: translateY(-50%) scale(1.08);
-}
-
 .lightbox-caption {
   position: absolute;
   bottom: 1.25rem;
@@ -589,16 +614,11 @@ textarea {
   backdrop-filter: blur(4px);
 }
 
-.lightbox-caption:empty,
-.lightbox-caption[hidden] {
-  display: none;
-}
-
 .lightbox-caption strong {
   display: block;
   font-family: var(--font-serif);
   font-size: 1.2rem;
-  color: var(--color-gold);
+  color: #C29B38;
 }
 
 .lightbox-caption p {
@@ -607,9 +627,6 @@ textarea {
   margin-top: 0.15rem;
 }
 
-/* ==========================================================================
-   Footer
-   ========================================================================== */
 footer {
   text-align: center;
   padding: 4rem 1.5rem;
@@ -629,17 +646,16 @@ footer p {
   font-size: 0.85rem;
 }
 
-/* ==========================================================================
-   Responsive Breakpoints
-   ========================================================================== */
 @media (min-width: 640px) {
   .card {
     padding: 3rem 2.5rem;
   }
-  
   .gallery-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 1.25rem;
+  }
+  .message-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -647,5 +663,8 @@ footer p {
   .gallery-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
+  }
+  .message-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
